@@ -32,6 +32,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
   pull-requests: write
 
 jobs:
@@ -50,6 +51,12 @@ jobs:
 
 > Pin to `@main` while you experiment, then move to a tag (e.g. `@v1`) once
 > we cut releases.
+>
+> If you use `agent: claude` (or let users switch to Claude via
+> `workflow_dispatch`), the **caller workflow** must grant
+> `permissions: id-token: write`. This is required by
+> `anthropics/claude-code-action` for GitHub App OIDC auth and is harmless for
+> Codex.
 
 ---
 
@@ -87,6 +94,29 @@ jobs:
 The workflow only validates the secrets it needs for the chosen agent, so you
 do not have to set the other ones.
 
+## Workflow permissions
+
+When `agent: claude`, your **caller workflow** must include:
+
+```yaml
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+```
+
+Why: `anthropics/claude-code-action` uses GitHub OIDC when operating through
+the default Claude GitHub App. Without `id-token: write`, GitHub refuses to
+mint the JWT and the action fails with:
+
+```text
+Could not fetch an OIDC token. Did you remember to add `id-token: write` to your workflow permissions?
+```
+
+This is especially important for **external reusable workflows** like this
+repository: the permission must be granted by the **caller** workflow, not just
+inside the called workflow.
+
 ---
 
 ## Authentication recipes
@@ -113,6 +143,9 @@ secrets:
 ### Claude Code with `ANTHROPIC_API_KEY`
 
 ```yaml
+permissions:
+  id-token: write
+
 with:
   agent: claude
 secrets:
@@ -125,6 +158,9 @@ Run `claude setup-token` locally, copy the token, and store it as
 `CLAUDE_CODE_OAUTH_TOKEN`:
 
 ```yaml
+permissions:
+  id-token: write
+
 with:
   agent: claude
 secrets:
@@ -134,6 +170,9 @@ secrets:
 ### Claude Code via a custom base URL
 
 ```yaml
+permissions:
+  id-token: write
+
 with:
   agent: claude
   anthropic_base_url: https://my-proxy.example.com
