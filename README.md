@@ -77,6 +77,7 @@ jobs:
 | `pr_body` | string | auto-generated | PR body. |
 | `commit_message` | string | `chore: update AGENTS.md` | Commit message. |
 | `model` | string | `''` | Optional model override forwarded to the agent. |
+| `claude_max_turns` | number | `60` | Maximum turns for Claude Code. Increase this for very large repositories; ignored by Codex. |
 | `prompt_file` | string | `''` | Path (in caller repo) to a custom prompt that fully replaces the default template. |
 | `extra_instructions` | string | `''` | Multi-line string appended to the default prompt under `## Additional Instructions`. |
 | `codex_responses_endpoint` | string | `''` | Custom Responses API endpoint for Codex (e.g. Azure). |
@@ -145,6 +146,21 @@ Instead, it prints a compare URL so you can open the PR manually.
 ---
 
 ## Authentication recipes
+
+### Claude on large repositories
+
+Claude now defaults to `claude_max_turns: 60` instead of `30`, and the bundled
+prompt prefers local verification over exhaustive repo-wide exploration. If
+your repository is still especially large, you can raise the limit further:
+
+```yaml
+with:
+  agent: claude
+  claude_max_turns: 90
+```
+
+You should still prefer narrowing `directories` or adding focused
+`extra_instructions` over setting a very high turn limit.
 
 ### Codex with `OPENAI_API_KEY`
 

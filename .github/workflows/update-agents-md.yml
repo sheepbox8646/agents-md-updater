@@ -44,6 +44,10 @@ on:
         description: "Optional model override passed to the agent."
         type: string
         default: ""
+      claude_max_turns:
+        description: "Maximum turns for Claude Code. Increase this for large repositories."
+        type: number
+        default: 60
       prompt_file:
         description: "Path (in the caller repo) to a custom prompt file that fully replaces the default template."
         type: string
@@ -230,7 +234,7 @@ jobs:
           github_token: ${{ secrets.GH_TOKEN || github.token }}
           prompt: ${{ steps.read_prompt.outputs.value }}
           claude_args: |
-            --max-turns 30
+            --max-turns ${{ inputs.claude_max_turns }}
             ${{ inputs.model && format('--model {0}', inputs.model) || '' }}
 
       - name: Apply dry-run change

@@ -22,28 +22,32 @@ in sync with `AGENTS.md` or simply make it a pointer (e.g. a single line
 1. **Read every file listed under "Files to Maintain" above.** Note their
    current scope, voice, and section structure. Preserve them whenever the
    content is still accurate.
-2. **Survey the repository** to verify what each file claims:
-   - Project manifests: `package.json`, `pnpm-workspace.yaml`, `pyproject.toml`,
-     `Cargo.toml`, `go.mod`, `Gemfile`, etc.
-   - Top-level layout (`src/`, `apps/`, `packages/`, `tests/`, ...).
-   - CI configuration: `.github/workflows/`, `Makefile`, `Justfile`,
-     `tox.ini`, `nox.py`.
-   - Existing `README.md`, `CONTRIBUTING.md`, `docs/`.
-   - Lint/format configs: `.eslintrc*`, `ruff.toml`, `.prettierrc*`,
-     `rustfmt.toml`.
-3. **Diff against the file's current content.** For each file, list (silently,
+2. **Verify claims with the smallest useful search first.** Prioritize:
+   - The nearest manifest(s) and config files for that file's scope
+     (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, etc.).
+   - The nearest `README.md` / `docs/` for that scope.
+   - Root-level CI / task runners only when the target file mentions repo-wide
+     commands or conventions.
+   - Existing directory layout for the target scope.
+3. **Avoid exhaustive exploration.**
+   - Do **not** read every package or app in a large monorepo.
+   - Do **not** scan unrelated directories once you have enough evidence to
+     verify the listed file.
+   - If the current text is plausible and you cannot verify a claim quickly,
+     prefer leaving that line unchanged over exploring the entire repository.
+4. **Diff against the file's current content.** For each file, list (silently,
    to yourself) the items that are stale, missing, or wrong, then update only
    those.
-4. **Edit the files in place.** Keep the existing tone and section ordering
+5. **Edit the files in place.** Keep the existing tone and section ordering
    when reasonable. Prefer concise, scannable bullet points over prose.
-5. **Respect scope per directory:**
+6. **Respect scope per directory:**
    - The root `AGENTS.md` describes the whole project, monorepo structure,
      repo-wide commands, and shared conventions.
    - A nested `AGENTS.md` (e.g. `packages/api/AGENTS.md`) covers only that
      package: its purpose, its specific build/test commands, and any
      conventions that diverge from the root.
    - Do not repeat content that already lives in a parent file.
-6. **`CLAUDE.md` handling:** if both `AGENTS.md` and `CLAUDE.md` are present
+7. **`CLAUDE.md` handling:** if both `AGENTS.md` and `CLAUDE.md` are present
    in the same directory, keep them consistent. If `CLAUDE.md` is just a
    pointer (e.g. `See @AGENTS.md.`), leave it as is unless the pointer is
    broken.
@@ -53,6 +57,7 @@ in sync with `AGENTS.md` or simply make it a pointer (e.g. a single line
 - Be specific. Prefer concrete commands ("`pnpm test --filter web`") over
   vague guidance ("run the tests").
 - Be brief. Cut anything redundant. Most sections should fit on one screen.
+- Prefer minimal edits. If only one section is stale, update only that section.
 - No marketing language, no emoji unless the file already uses them.
 - Use fenced code blocks for commands and file paths.
 - Keep section headings consistent with what is already in the file.
@@ -73,4 +78,5 @@ in sync with `AGENTS.md` or simply make it a pointer (e.g. a single line
 ## Stop Condition
 
 Stop as soon as the listed files accurately reflect the current state of the
-repository. If everything is already accurate, leave the files unchanged.
+repository. If everything is already accurate, leave the files unchanged. Do
+not continue exploring once you have enough evidence to make or skip the edit.

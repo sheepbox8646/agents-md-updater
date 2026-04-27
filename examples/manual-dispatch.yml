@@ -22,6 +22,10 @@ on:
         type: choice
         options: [pr, commit]
         default: pr
+      claude_max_turns:
+        description: "Max Claude turns for large repositories"
+        type: number
+        default: 60
 
 permissions:
   contents: write
@@ -36,6 +40,7 @@ jobs:
       directories: ${{ inputs.directories }}
       target_files: ${{ inputs.target_files }}
       output_mode: ${{ inputs.output_mode }}
+      claude_max_turns: ${{ inputs.claude_max_turns }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
