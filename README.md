@@ -89,14 +89,14 @@ jobs:
 | `OPENAI_API_KEY` | Required when `agent: codex`. |
 | `ANTHROPIC_API_KEY` | Set this **or** `CLAUDE_CODE_OAUTH_TOKEN` when `agent: claude`. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Set this **or** `ANTHROPIC_API_KEY` when `agent: claude`. Generate with `claude setup-token` (Pro/Max plans). |
-| `GH_TOKEN` | Optional. Use a PAT or GitHub App token if the default `GITHUB_TOKEN` cannot push to your branch / open the PR (e.g. you need cross-repo writes or a fine-grained token). |
+| `GH_TOKEN` | Optional but recommended for Claude. Reused both for final git operations and as `github_token` for `claude-code-action`, which means you can run Claude **without installing the official Claude GitHub App**. If omitted, the workflow falls back to the built-in `GITHUB_TOKEN`. |
 
 The workflow only validates the secrets it needs for the chosen agent, so you
 do not have to set the other ones.
 
 ## Workflow permissions
 
-When `agent: claude`, your **caller workflow** must include:
+The examples keep this permission block:
 
 ```yaml
 permissions:
@@ -105,17 +105,21 @@ permissions:
   pull-requests: write
 ```
 
-Why: `anthropics/claude-code-action` uses GitHub OIDC when operating through
-the default Claude GitHub App. Without `id-token: write`, GitHub refuses to
-mint the JWT and the action fails with:
+Why:
+
+- If `claude-code-action` runs through the **official Claude GitHub App** path,
+  it needs `id-token: write` for GitHub OIDC, otherwise it fails with:
 
 ```text
 Could not fetch an OIDC token. Did you remember to add `id-token: write` to your workflow permissions?
 ```
 
-This is especially important for **external reusable workflows** like this
-repository: the permission must be granted by the **caller** workflow, not just
-inside the called workflow.
+- This reusable workflow now also passes `github_token` to Claude
+  (`GH_TOKEN` if you set it, otherwise the built-in `GITHUB_TOKEN`), so
+  installing the official Claude App is **optional** for the default
+  automation flow.
+- Keeping `id-token: write` in the caller is still harmless and preserves
+  compatibility with the official App path and upstream examples.
 
 ---
 
@@ -150,6 +154,7 @@ with:
   agent: claude
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  GH_TOKEN: ${{ secrets.GH_TOKEN }} # optional override; otherwise falls back to GITHUB_TOKEN
 ```
 
 ### Claude Code with an OAuth token (Pro / Max plans)
@@ -165,6 +170,7 @@ with:
   agent: claude
 secrets:
   CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  GH_TOKEN: ${{ secrets.GH_TOKEN }} # optional override; otherwise falls back to GITHUB_TOKEN
 ```
 
 ### Claude Code via a custom base URL
@@ -178,7 +184,37 @@ with:
   anthropic_base_url: https://my-proxy.example.com
 secrets:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  GH_TOKEN: ${{ secrets.GH_TOKEN }} # optional override; otherwise falls back to GITHUB_TOKEN
 ```
+
+### Claude Code without installing the official Claude GitHub App
+
+This reusable workflow passes `github_token` to Claude automatically. That
+means you have two ways to run Claude:
+
+1. Install the official Claude GitHub App and keep `id-token: write`.
+2. Skip the official App and let this workflow use `GH_TOKEN` (or the built-in
+   `GITHUB_TOKEN`) as Claude's `github_token`.
+
+Minimal example:
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    uses: sheepbox8646/agents-md-updater/.github/workflows/update-agents-md.yml@main
+    with:
+      agent: claude
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+```
+
+If you omit `GH_TOKEN`, the reusable workflow falls back to the job's
+`GITHUB_TOKEN`.
 
 ---
 
