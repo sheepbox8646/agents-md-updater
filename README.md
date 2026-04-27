@@ -128,6 +128,9 @@ Could not fetch an OIDC token. Did you remember to add `id-token: write` to your
 ### Codex with `OPENAI_API_KEY`
 
 ```yaml
+permissions:
+  id-token: write
+
 with:
   agent: codex
 secrets:
@@ -137,6 +140,9 @@ secrets:
 ### Codex against Azure (or any custom Responses endpoint)
 
 ```yaml
+permissions:
+  id-token: write
+
 with:
   agent: codex
   codex_responses_endpoint: https://YOUR_PROJECT.openai.azure.com/openai/v1/responses
@@ -201,6 +207,7 @@ Minimal example:
 ```yaml
 permissions:
   contents: write
+  id-token: write
   pull-requests: write
 
 jobs:
