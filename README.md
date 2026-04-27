@@ -47,6 +47,9 @@ jobs:
         apps/web
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # Optional but recommended for output_mode: pr when your repository
+      # does not allow the default GITHUB_TOKEN to create pull requests:
+      # GH_TOKEN: ${{ secrets.GH_TOKEN }}
 ```
 
 > Pin to `@main` while you experiment, then move to a tag (e.g. `@v1`) once
@@ -89,7 +92,7 @@ jobs:
 | `OPENAI_API_KEY` | Required when `agent: codex`. |
 | `ANTHROPIC_API_KEY` | Set this **or** `CLAUDE_CODE_OAUTH_TOKEN` when `agent: claude`. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Set this **or** `ANTHROPIC_API_KEY` when `agent: claude`. Generate with `claude setup-token` (Pro/Max plans). |
-| `GH_TOKEN` | Optional but recommended for Claude. Reused both for final git operations and as `github_token` for `claude-code-action`, which means you can run Claude **without installing the official Claude GitHub App**. If omitted, the workflow falls back to the built-in `GITHUB_TOKEN`. |
+| `GH_TOKEN` | Optional but recommended. Reused for final git operations, and also passed as `github_token` to `claude-code-action`. Use it when you want to run Claude **without installing the official Claude GitHub App**, or when your repository does not allow the default `GITHUB_TOKEN` to create pull requests. |
 
 The workflow only validates the secrets it needs for the chosen agent, so you
 do not have to set the other ones.
@@ -120,6 +123,24 @@ Could not fetch an OIDC token. Did you remember to add `id-token: write` to your
   automation flow.
 - Keeping `id-token: write` in the caller is still harmless and preserves
   compatibility with the official App path and upstream examples.
+
+---
+
+## Pull request creation
+
+When `output_mode: pr`, the workflow:
+
+1. creates a branch,
+2. pushes it to `origin`,
+3. then tries to open a PR.
+
+Automatic PR creation succeeds in either of these setups:
+
+- your repository has **Settings -> Actions -> General -> Allow GitHub Actions to create and approve pull requests** enabled, or
+- you provide `secrets.GH_TOKEN` with a PAT / GitHub App token that can open pull requests.
+
+If neither is true, the workflow now **does not fail after pushing the branch**.
+Instead, it prints a compare URL so you can open the PR manually.
 
 ---
 

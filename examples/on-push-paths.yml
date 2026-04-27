@@ -35,5 +35,8 @@ jobs:
         - Update root AGENTS.md only if the monorepo structure changed.
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Optional but recommended for output_mode: pr if your repository blocks
+      # the default GITHUB_TOKEN from creating pull requests:
+      # GH_TOKEN: ${{ secrets.GH_TOKEN }}
       # or use an OAuth token (Pro/Max plans) instead of an API key:
       # CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

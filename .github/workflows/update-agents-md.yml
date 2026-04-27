@@ -257,6 +257,7 @@ jobs:
           AGENT: ${{ inputs.agent }}
           DRY_RUN: ${{ inputs.dry_run }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+          REPO_FULL_NAME: ${{ github.repository }}
           DISCOVERED_TARGETS: ${{ steps.discover.outputs.targets }}
           RUN_ID: ${{ github.run_id }}
         shell: bash

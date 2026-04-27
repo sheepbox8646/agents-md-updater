@@ -40,3 +40,6 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      # Optional but recommended for output_mode: pr if your repository blocks
+      # the default GITHUB_TOKEN from creating pull requests:
+      # GH_TOKEN: ${{ secrets.GH_TOKEN }}

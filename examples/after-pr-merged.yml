@@ -31,3 +31,6 @@ jobs:
         but verify against the actual repository state before editing.
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # Optional but recommended for output_mode: pr if your repository blocks
+      # the default GITHUB_TOKEN from creating pull requests:
+      # GH_TOKEN: ${{ secrets.GH_TOKEN }}
