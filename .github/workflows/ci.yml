@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: shellcheck + actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/*.sh tests/run-act.sh
+
+      - name: actionlint
+        run: |
+          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) latest
+          ./actionlint -color
+
+  scripts-smoke:
+    name: scripts smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: discover-targets.sh finds fixture files
+        env:
+          TARGET_FILES: AGENTS.md,CLAUDE.md
+          DIRECTORIES: tests/fixtures/sample-repo
+          GITHUB_OUTPUT: ${{ runner.temp }}/out
+        run: |
+          set -euo pipefail
+          chmod +x scripts/*.sh
+          bash scripts/discover-targets.sh
+          grep -q '^count=4$' "$GITHUB_OUTPUT"
+
+      - name: build-prompt.sh assembles default + extras
+        env:
+          DEFAULT_PROMPT_PATH: prompts/update-agents-md.md
+          OUTPUT_PATH: ${{ runner.temp }}/prompt.md
+          DISCOVERED_TARGETS: |
+            AGENTS.md
+            packages/foo/AGENTS.md
+          EXTRA_INSTRUCTIONS: |
+            - additional rule 1
+            - additional rule 2
+          REPO_FULL_NAME: acme/widget
+          BASE_BRANCH: main
+        run: |
+          set -euo pipefail
+          bash scripts/build-prompt.sh
+          # shellcheck disable=SC2016
+          grep -q 'Repository: `acme/widget`' "$OUTPUT_PATH"
+          grep -q 'additional rule 1' "$OUTPUT_PATH"
+          grep -q 'AGENTS.md Update Task' "$OUTPUT_PATH"
+
+      - name: apply-changes.sh respects dry_run
+        env:
+          OUTPUT_MODE: pr
+          BASE_BRANCH: main
+          PR_TITLE: test
+          COMMIT_MESSAGE: "test: smoke"
+          AGENT: codex
+          DRY_RUN: "true"
+          RUN_ID: smoke
+          DISCOVERED_TARGETS: tests/fixtures/sample-repo/AGENTS.md
+        run: |
+          set -euo pipefail
+          # mutate a tracked file so apply-changes has something to commit
+          echo "<!-- smoke -->" >> tests/fixtures/sample-repo/AGENTS.md
+          git config user.email ci@example.com
+          git config user.name ci
+          bash scripts/apply-changes.sh
+          git log -1 --pretty=oneline | grep -q "test: smoke"
+
+  workflow-dry-run:
+    name: reusable workflow dry_run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Run reusable workflow in dry_run mode (act-style)
+        env:
+          ACT: "true"   # forces the in-workflow act fallback path
+          TARGET_FILES: AGENTS.md,CLAUDE.md
+          DIRECTORIES: tests/fixtures/sample-repo
+          OUTPUT_MODE: pr
+          DRY_RUN: "true"
+          GITHUB_OUTPUT: ${{ runner.temp }}/out
+          RUN_ID: ci
+          BASE_BRANCH: main
+          AGENT: codex
+          REPO_FULL_NAME: ${{ github.repository }}
+          DEFAULT_PROMPT_PATH: prompts/update-agents-md.md
+          OUTPUT_PATH: ${{ runner.temp }}/prompt.md
+        run: |
+          set -euo pipefail
+          chmod +x scripts/*.sh
+          bash scripts/discover-targets.sh
+          DISCOVERED_TARGETS="$(awk '/^targets<<__AGENTS_MD_EOF__$/{flag=1;next} /^__AGENTS_MD_EOF__$/{flag=0} flag' "$GITHUB_OUTPUT")"
+          export DISCOVERED_TARGETS
+          bash scripts/build-prompt.sh
+          # simulate dry-run mutation step from the reusable workflow
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            printf '\n<!-- agents-md-updater dry-run %s -->\n' "$(date -u +%FT%TZ)" >> "$f"
+          done <<< "$DISCOVERED_TARGETS"
+          git config user.email ci@example.com
+          git config user.name ci
+          bash scripts/apply-changes.sh

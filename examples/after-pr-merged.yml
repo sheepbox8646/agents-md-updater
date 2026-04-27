@@ -1,0 +1,32 @@
+# Run the updater right after a PR is merged to the default branch. Useful
+# when you want AGENTS.md churn to land in a follow-up PR rather than blocking
+# the original change.
+name: Update AGENTS.md (after PR merged)
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    if: github.event.pull_request.merged == true
+    uses: sheepbox8646/agents-md-updater/.github/workflows/update-agents-md.yml@main
+    with:
+      agent: codex
+      target_files: AGENTS.md,CLAUDE.md
+      directories: |
+        .
+      output_mode: pr
+      pr_title: "chore(docs): refresh AGENTS.md after #${{ github.event.pull_request.number }}"
+      extra_instructions: |
+        Pull request #${{ github.event.pull_request.number }} was just merged.
+        Title: ${{ github.event.pull_request.title }}
+        Use the change as a hint for what may need to be reflected in AGENTS.md,
+        but verify against the actual repository state before editing.
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

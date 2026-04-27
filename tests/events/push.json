@@ -1,0 +1,14 @@
+{
+  "ref": "refs/heads/main",
+  "repository": {
+    "name": "agents-md-updater",
+    "full_name": "sheepbox8646/agents-md-updater",
+    "default_branch": "main",
+    "owner": {
+      "login": "sheepbox8646"
+    }
+  },
+  "pusher": {
+    "name": "test"
+  }
+}

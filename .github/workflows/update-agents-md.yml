@@ -1,0 +1,269 @@
+name: Update AGENTS.md
+run-name: Update AGENTS.md (${{ inputs.agent }})
+
+on:
+  workflow_call:
+    inputs:
+      agent:
+        description: "Coding agent to use: 'codex' or 'claude'."
+        type: string
+        required: true
+      target_files:
+        description: "Comma-separated list of file names to update (e.g. 'AGENTS.md,CLAUDE.md')."
+        type: string
+        default: "AGENTS.md"
+      directories:
+        description: "Newline-separated list of directories to scan. Use '.' for repo root. Each directory is searched for the listed target_files."
+        type: string
+        default: "."
+      base_branch:
+        description: "Branch to PR/commit against. Defaults to the repository default branch."
+        type: string
+        default: ""
+      output_mode:
+        description: "How to deliver changes: 'pr' (open a pull request, default) or 'commit' (push directly to base_branch)."
+        type: string
+        default: "pr"
+      pr_branch:
+        description: "Head branch to create for the PR. Defaults to 'agents-md-updater/<run_id>'."
+        type: string
+        default: ""
+      pr_title:
+        description: "Title for the pull request."
+        type: string
+        default: "chore: update AGENTS.md"
+      pr_body:
+        description: "Body for the pull request. If empty, a default summary is generated."
+        type: string
+        default: ""
+      commit_message:
+        description: "Commit message for the change."
+        type: string
+        default: "chore: update AGENTS.md"
+      model:
+        description: "Optional model override passed to the agent."
+        type: string
+        default: ""
+      prompt_file:
+        description: "Path (in the caller repo) to a custom prompt file that fully replaces the default template."
+        type: string
+        default: ""
+      extra_instructions:
+        description: "Multi-line string appended to the default prompt under '## Additional Instructions'."
+        type: string
+        default: ""
+      codex_responses_endpoint:
+        description: "Optional Responses API endpoint override for Codex (e.g. Azure)."
+        type: string
+        default: ""
+      anthropic_base_url:
+        description: "Optional ANTHROPIC_BASE_URL value injected into the Claude step."
+        type: string
+        default: ""
+      runs_on:
+        description: "Runner label for the job."
+        type: string
+        default: "ubuntu-latest"
+      tools_ref:
+        description: "Git ref of sheepbox8646/agents-md-updater to fetch scripts and the default prompt from. Keep in sync with the @<ref> in your `uses:` line."
+        type: string
+        default: "main"
+      dry_run:
+        description: "If true, skip the real agent invocation and only append a marker line to each target file. Useful for local act testing."
+        type: boolean
+        default: false
+    secrets:
+      OPENAI_API_KEY:
+        required: false
+      ANTHROPIC_API_KEY:
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+      GH_TOKEN:
+        required: false
+
+jobs:
+  update:
+    name: update-agents-md
+    runs-on: ${{ inputs.runs_on }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Validate inputs
+        env:
+          AGENT: ${{ inputs.agent }}
+          OUTPUT_MODE: ${{ inputs.output_mode }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$AGENT" in
+            codex|claude) ;;
+            *) echo "::error::inputs.agent must be 'codex' or 'claude' (got '$AGENT')"; exit 1 ;;
+          esac
+          case "$OUTPUT_MODE" in
+            pr|commit) ;;
+            *) echo "::error::inputs.output_mode must be 'pr' or 'commit' (got '$OUTPUT_MODE')"; exit 1 ;;
+          esac
+          if [[ "$DRY_RUN" != "true" ]]; then
+            if [[ "$AGENT" == "codex" && -z "$OPENAI_API_KEY" ]]; then
+              echo "::error::agent=codex requires secrets.OPENAI_API_KEY"
+              exit 1
+            fi
+            if [[ "$AGENT" == "claude" && -z "$ANTHROPIC_API_KEY" && -z "$CLAUDE_CODE_OAUTH_TOKEN" ]]; then
+              echo "::error::agent=claude requires secrets.ANTHROPIC_API_KEY or secrets.CLAUDE_CODE_OAUTH_TOKEN"
+              exit 1
+            fi
+          fi
+
+      - name: Checkout caller repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Checkout agents-md-updater tools
+        if: ${{ env.ACT != 'true' }}
+        uses: actions/checkout@v5
+        with:
+          repository: sheepbox8646/agents-md-updater
+          ref: ${{ inputs.tools_ref }}
+          path: .agents-md-updater
+          fetch-depth: 1
+
+      - name: Bootstrap tools dir (act mode)
+        if: ${{ env.ACT == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .agents-md-updater
+          if [[ -d scripts ]]; then cp -R scripts .agents-md-updater/; fi
+          if [[ -d prompts ]]; then cp -R prompts .agents-md-updater/; fi
+          echo "Bootstrapped tools from local workspace for act run."
+
+      - name: Resolve base branch
+        id: base
+        env:
+          BASE_BRANCH_INPUT: ${{ inputs.base_branch }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$BASE_BRANCH_INPUT" ]]; then
+            echo "branch=$BASE_BRANCH_INPUT" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$DEFAULT_BRANCH" ]]; then
+            echo "branch=$DEFAULT_BRANCH" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=$(git symbolic-ref --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Discover target files
+        id: discover
+        env:
+          TARGET_FILES: ${{ inputs.target_files }}
+          DIRECTORIES: ${{ inputs.directories }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .agents-md-updater/scripts/*.sh
+          .agents-md-updater/scripts/discover-targets.sh
+
+      - name: Build prompt
+        id: prompt
+        env:
+          DISCOVERED_TARGETS: ${{ steps.discover.outputs.targets }}
+          PROMPT_FILE_OVERRIDE: ${{ inputs.prompt_file }}
+          EXTRA_INSTRUCTIONS: ${{ inputs.extra_instructions }}
+          DEFAULT_PROMPT_PATH: .agents-md-updater/prompts/update-agents-md.md
+          OUTPUT_PATH: ${{ runner.temp }}/agents-md-prompt.md
+          REPO_FULL_NAME: ${{ github.repository }}
+          BASE_BRANCH: ${{ steps.base.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          .agents-md-updater/scripts/build-prompt.sh
+          echo "path=$OUTPUT_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Run Codex
+        if: ${{ inputs.agent == 'codex' && !inputs.dry_run && steps.discover.outputs.count != '0' }}
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          responses-api-endpoint: ${{ inputs.codex_responses_endpoint }}
+          prompt-file: ${{ steps.prompt.outputs.path }}
+          sandbox: workspace-write
+          model: ${{ inputs.model }}
+
+      - name: Read prompt for Claude
+        id: read_prompt
+        if: ${{ inputs.agent == 'claude' && !inputs.dry_run && steps.discover.outputs.count != '0' }}
+        env:
+          PROMPT_PATH: ${{ steps.prompt.outputs.path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "value<<__AGENTS_MD_EOF__"
+            cat "$PROMPT_PATH"
+            echo
+            echo "---"
+            echo
+            echo "IMPORTANT: Edit files in place only. Do NOT run 'git commit',"
+            echo "'git push', or 'gh pr create'. The calling workflow handles git"
+            echo "operations after you finish."
+            echo "__AGENTS_MD_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Claude Code
+        if: ${{ inputs.agent == 'claude' && !inputs.dry_run && steps.discover.outputs.count != '0' }}
+        uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_BASE_URL: ${{ inputs.anthropic_base_url }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: ${{ steps.read_prompt.outputs.value }}
+          claude_args: |
+            --max-turns 30
+            ${{ inputs.model && format('--model {0}', inputs.model) || '' }}
+
+      - name: Apply dry-run change
+        if: ${{ inputs.dry_run && steps.discover.outputs.count != '0' }}
+        env:
+          DISCOVERED_TARGETS: ${{ steps.discover.outputs.targets }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            printf '\n<!-- agents-md-updater dry-run %s -->\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$f"
+          done <<< "$DISCOVERED_TARGETS"
+
+      - name: Apply changes
+        if: ${{ steps.discover.outputs.count != '0' }}
+        env:
+          OUTPUT_MODE: ${{ inputs.output_mode }}
+          BASE_BRANCH: ${{ steps.base.outputs.branch }}
+          PR_BRANCH: ${{ inputs.pr_branch }}
+          PR_TITLE: ${{ inputs.pr_title }}
+          PR_BODY: ${{ inputs.pr_body }}
+          COMMIT_MESSAGE: ${{ inputs.commit_message }}
+          AGENT: ${{ inputs.agent }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+          DISCOVERED_TARGETS: ${{ steps.discover.outputs.targets }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          .agents-md-updater/scripts/apply-changes.sh
+
+      - name: Skip (no targets found)
+        if: ${{ steps.discover.outputs.count == '0' }}
+        shell: bash
+        run: |
+          echo "::notice::No matching files found for target_files='${{ inputs.target_files }}' under directories='${{ inputs.directories }}'. Nothing to do."

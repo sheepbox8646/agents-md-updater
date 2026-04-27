@@ -1,0 +1,49 @@
+# Local-only caller used by tests/run-act.sh. It calls the reusable workflow
+# from the local working tree (so changes you make in scripts/ or
+# prompts/ are picked up immediately).
+#
+# This file is NOT meant for production use. Real users should copy one of
+# examples/*.yml into their own repo.
+name: act-test-caller
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: codex or claude
+        type: string
+        default: codex
+      directories:
+        description: dirs to scan
+        type: string
+        default: tests/fixtures/sample-repo
+      target_files:
+        description: target files
+        type: string
+        default: AGENTS.md,CLAUDE.md
+      output_mode:
+        description: pr | commit
+        type: string
+        default: pr
+      dry_run:
+        description: skip real agent
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  call:
+    uses: ./.github/workflows/update-agents-md.yml
+    with:
+      agent: ${{ inputs.agent || 'codex' }}
+      directories: ${{ inputs.directories || 'tests/fixtures/sample-repo' }}
+      target_files: ${{ inputs.target_files || 'AGENTS.md,CLAUDE.md' }}
+      output_mode: ${{ inputs.output_mode || 'pr' }}
+      dry_run: ${{ inputs.dry_run != 'false' && inputs.dry_run != false }}
+    secrets: inherit

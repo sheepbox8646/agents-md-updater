@@ -1,0 +1,41 @@
+# Manual trigger that lets you pick the agent and scope from the GitHub UI.
+name: Update AGENTS.md (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: "Coding agent (codex or claude)"
+        type: choice
+        options: [codex, claude]
+        default: codex
+      directories:
+        description: "Newline-separated directories to scan"
+        type: string
+        default: "."
+      target_files:
+        description: "Comma-separated file names"
+        type: string
+        default: "AGENTS.md"
+      output_mode:
+        description: "pr (open PR) or commit (push directly)"
+        type: choice
+        options: [pr, commit]
+        default: pr
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    uses: sheepbox8646/agents-md-updater/.github/workflows/update-agents-md.yml@main
+    with:
+      agent: ${{ inputs.agent }}
+      directories: ${{ inputs.directories }}
+      target_files: ${{ inputs.target_files }}
+      output_mode: ${{ inputs.output_mode }}
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

@@ -1,0 +1,13 @@
+# Local act test artifacts
+tests/.secrets
+tests/.tmp/
+tests/.act-cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Node / misc (just in case act mounts host node_modules)
+node_modules/

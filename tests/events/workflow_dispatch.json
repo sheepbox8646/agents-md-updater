@@ -1,0 +1,18 @@
+{
+  "inputs": {
+    "agent": "codex",
+    "directories": "tests/fixtures/sample-repo",
+    "target_files": "AGENTS.md,CLAUDE.md",
+    "output_mode": "pr",
+    "dry_run": "true"
+  },
+  "ref": "refs/heads/main",
+  "repository": {
+    "name": "agents-md-updater",
+    "full_name": "sheepbox8646/agents-md-updater",
+    "default_branch": "main",
+    "owner": {
+      "login": "sheepbox8646"
+    }
+  }
+}

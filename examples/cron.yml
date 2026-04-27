@@ -1,0 +1,29 @@
+# Schedule a weekly refresh of AGENTS.md / CLAUDE.md.
+#
+# Drop this file at .github/workflows/update-agents-md.yml in YOUR repo and
+# adjust `directories`, `target_files`, and the cron expression to taste.
+name: Update AGENTS.md (weekly)
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # Mondays 03:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    uses: sheepbox8646/agents-md-updater/.github/workflows/update-agents-md.yml@main
+    with:
+      agent: codex
+      target_files: AGENTS.md,CLAUDE.md
+      directories: |
+        .
+        packages/api
+        apps/web
+      output_mode: pr
+      pr_title: "chore(docs): weekly AGENTS.md refresh"
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
