@@ -24,7 +24,7 @@ jobs:
     uses: sheepbox8646/agents-md-updater/.github/workflows/update-agents-md.yml@main
     with:
       agent: claude
-      claude_max_turns: 60
+      claude_max_turns: 999
       target_files: AGENTS.md,CLAUDE.md
       directories: |
         .

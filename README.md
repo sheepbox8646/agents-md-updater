@@ -77,7 +77,7 @@ jobs:
 | `pr_body` | string | auto-generated | PR body. |
 | `commit_message` | string | `chore: update AGENTS.md` | Commit message. |
 | `model` | string | `''` | Optional model override forwarded to the agent. |
-| `claude_max_turns` | number | `60` | Maximum turns for Claude Code. Increase this for very large repositories; ignored by Codex. |
+| `claude_max_turns` | number | `999` | Maximum turns for Claude Code. Increase this for very large repositories; ignored by Codex. |
 | `prompt_file` | string | `''` | Path (in caller repo) to a custom prompt that fully replaces the default template. |
 | `extra_instructions` | string | `''` | Multi-line string appended to the default prompt under `## Additional Instructions`. |
 | `codex_responses_endpoint` | string | `''` | Custom Responses API endpoint for Codex (e.g. Azure). |
@@ -149,18 +149,18 @@ Instead, it prints a compare URL so you can open the PR manually.
 
 ### Claude on large repositories
 
-Claude now defaults to `claude_max_turns: 60` instead of `30`, and the bundled
-prompt prefers local verification over exhaustive repo-wide exploration. If
-your repository is still especially large, you can raise the limit further:
+Claude now defaults to `claude_max_turns: 999` instead of `30`, and the bundled
+prompt prefers local verification over exhaustive repo-wide exploration. In
+most repositories you should not need to override it:
 
 ```yaml
 with:
   agent: claude
-  claude_max_turns: 90
+  claude_max_turns: 999
 ```
 
 You should still prefer narrowing `directories` or adding focused
-`extra_instructions` over setting a very high turn limit.
+`extra_instructions` over setting an even higher turn limit.
 
 ### Codex with `OPENAI_API_KEY`
 

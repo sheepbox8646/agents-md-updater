@@ -25,7 +25,7 @@ on:
       claude_max_turns:
         description: "Max Claude turns for large repositories"
         type: number
-        default: 60
+        default: 999
 
 permissions:
   contents: write
